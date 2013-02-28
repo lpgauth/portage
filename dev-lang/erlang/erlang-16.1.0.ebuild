@@ -38,7 +38,7 @@ RDEPEND=">=dev-lang/perl-5.6.1
 	java? ( >=virtual/jdk-1.2 )
 	odbc? ( dev-db/unixODBC )"
 DEPEND="${RDEPEND}
-	wxwidgets? ( x11-libs/wxGTK:2.8[opengl] )
+	wxwidgets? ( x11-libs/wxGTK:2.8[opengl] virtual/glu )
 	sctp? ( net-misc/lksctp-tools )
 	tk? ( dev-lang/tk )"
 
@@ -58,6 +58,9 @@ src_prepare() {
 
 	# bug 263129, don't ignore LDFLAGS, reported upstream
 	sed -e 's:LDFLAGS = \$(DED_LDFLAGS):LDFLAGS += \$(DED_LDFLAGS):' -i "${S}"/lib/megaco/src/flex/Makefile.in || die
+
+	# don't ignore LDFLAGS, reported upstream
+	sed -e 's:LDFLAGS =  \$(ODBC_LIB) \$(EI_LDFLAGS):LDFLAGS += \$(ODBC_LIB) \$(EI_LDFLAGS):' -i "${S}"/lib/odbc/c_src/Makefile.in || die
 
 	if ! use wxwidgets; then
 		sed -i 's: wx : :' lib/Makefile
@@ -110,7 +113,7 @@ src_install() {
 	local ERL_INTERFACE_VER=$(extract_version lib/erl_interface EI_VSN)
 	local ERL_ERTS_VER=$(extract_version erts VSN)
 
-	emake -j1 INSTALL_PREFIX="${D}" install || die
+	emake INSTALL_PREFIX="${D}" install || die
 	dodoc AUTHORS README.md
 
 	dosym "${ERL_LIBDIR}/bin/erl" /usr/bin/erl
@@ -134,7 +137,7 @@ src_install() {
 		dodir "${ERL_LIBDIR}/${i##${WORKDIR}}"
 	done
 	for file in "${WORKDIR}"/man/man*/*.[1-9]; do
-			# doman sucks so we can't use it
+		# doman sucks so we can't use it
 		cp ${file} "${ED}/${ERL_LIBDIR}"/man/man${file##*.}/
 	done
 	# extend MANPATH, so the normal man command can find it
@@ -155,10 +158,6 @@ src_install() {
 		elisp-site-file-install "${T}"/${SITEFILE}
 		popd
 	fi
-
-	# prepare erl for SMP, fixes bug #188112
-	use smp && sed -i -e 's:\(exec.*erlexec\):\1 -smp:' \
-		"${ED}/${ERL_LIBDIR}/bin/erl"
 
 	newinitd "${FILESDIR}"/epmd.init epmd || die
 }
